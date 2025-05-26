@@ -22,6 +22,9 @@ public class VList implements IValue {
 
     @Override
     public String toStr() {
+        if (isNil()) {
+            return "";
+        }
         StringBuilder sb = new StringBuilder();
         sb.append(head.toStr());
         IValue currentTail = tail;
