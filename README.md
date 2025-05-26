@@ -1,2 +1,8 @@
 # PL_Phase1
-Github repo for the first project
+Interpreter for L1++ Imperative Language
+
+# Building
+To build the project, run "./makeit.sh" on the terminal. This will javacc the parser file and then compile the java files, creating class files
+
+# Running
+To run the project, run "java L1PPint" on the terminal. A welcome message will pop up and then one test can me fed at a time, ending with ";;"
