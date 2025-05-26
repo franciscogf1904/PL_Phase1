@@ -34,6 +34,46 @@
  b := !b + 5;
  !b;;
 
+/* Test 6 (Lazy Lists) ----- EXPECT OUTPUT: first 20 multiples of 2 */
+let double = fn l => {
+    match l {
+        nil -> nil
+        |
+        h::t -> (h*2)::(double (t))
+    }
+};
+let mkll = fn n =>
+{
+    if (n==0) {
+        nil
+    } else {
+        n:?( mkll(n-1))
+    }
+};
+let ll20 = mkll (20);
+double ( ll20 ) ;;
+
+/* Test 7 (Strict Lists) ----- EXPECT OUTPUT: first 10 squares */
+
+let square = fn l => {
+    match l {
+        nil -> nil
+        |
+        h::t -> (h*h)::(square (t))
+    }
+};
+let mkll = fn n =>
+{
+    if (n==0) {
+        nil
+    } else {
+        n::( mkll(n-1))
+    }
+};
+let ll10 = mkll (10);
+square ( ll10 ) ;;
+
+
  
 
 
