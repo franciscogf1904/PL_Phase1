@@ -1,0 +1,23 @@
+public class ASTEq implements ASTNode {
+    private ASTNode lhs;
+    private ASTNode rhs;
+    
+    public ASTEq(ASTNode lhs, ASTNode rhs) {
+        this.lhs = lhs;
+        this.rhs = rhs;
+    }
+    
+    @Override
+    public IValue eval(Environment<IValue> e) throws InterpreterError {
+        IValue v1 = lhs.eval(e);
+        IValue v2 = rhs.eval(e);
+        
+        if (v1 instanceof VInt && v2 instanceof VInt) {
+            return new VBool(((VInt) v1).getval() == ((VInt) v2).getval());
+        } else if (v1 instanceof VBool && v2 instanceof VBool) {
+            return new VBool(((VBool) v1).getval() == ((VBool) v2).getval());
+        } else {
+            throw new InterpreterError("Equality operator requires operands of the same type");
+        }
+    }
+}

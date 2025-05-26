@@ -1,0 +1,312 @@
+PARSER_BEGIN(Parser)
+
+import java.util.*;
+
+public class Parser {
+}
+
+PARSER_END(Parser)
+
+SKIP :
+{
+  " "
+| "\t"
+| "\r"
+| "\n"
+}
+
+TOKEN :
+{
+
+  < LET : "let" >
+  |
+  < TRUE: "true" >
+  |
+  < FALSE: "false" >
+  |
+  < PLUS : "+" >
+  |
+  < MINUS : "-">
+  |
+  < STAR : "*">
+  |
+  < DIV : "/">
+  |
+  < LPAR : "(" >
+  |
+  < RPAR : ")" >
+  |
+  < LBRA : "{" >
+  |
+  < RBRA : "}" >
+  |
+  < EQUAL : "=" >
+  |
+  < COLON : ":" >
+  |
+  < SEMIC : ";" >
+  |
+  < TERM : ";;" >
+  |
+  < COMMA : "," >
+  |
+  < AND : "&&" >
+  |
+  < OR : "||" >
+  |
+  < EQ : "==" >
+  |
+  < NEQ : "!=" >
+  |  
+  < GT : ">" >
+  |
+  < LT : "<" >
+  |
+  < GTEQ : ">=" >
+  |
+  < LTEQ : "<=" >
+  |
+  < NOT : "~" >
+  |
+  < ASSIGN : ":=" >
+  |
+  < BOX : "box" >
+  |
+  < BANG : "!" >
+  |
+  < IF : "if" >
+  |
+  < ELSE : "else" >
+  |
+  < WHILE : "while" >
+  |
+  < PRINT : "print" >
+  |
+  < PRINTLN : "println" >
+  |
+  < FN : "fn" >
+  |
+  < ARROW : "=>">
+  |
+  < NIL: "nil" >
+  |
+  < CONS: "::" >
+  |
+  < LAZYCONS: ":?" >
+  |
+  < MATCH: "match" >
+  |
+  < BAR: "|" > 
+  |
+  < P_ARROW: "->" >
+  |
+  < String: "\"" (~["\"","\\"]) | ("\\" ( ["n","t","b","r","f","\\","\""] ) )* "\"" >
+  |
+  < Id: ["a"-"z","A"-"Z"] ( ["a"-"z","A"-"Z","0"-"9"] )* >
+  |
+  < Num: (["0"-"9"]) + >
+}
+
+ASTNode Start():
+{ ASTNode t; }
+{
+    <EOF> {return null;}
+  | t = Let() <TERM> { return t; }
+}
+
+ASTNode Let() :
+{ Token n; 
+  ASTNode t, e1, e2;
+  List<Bind> decls  = new ArrayList<Bind>();;
+}
+{ 
+    (
+    t = Seq()
+    |
+    ((<LET>  n=<Id>  <EQUAL> e1 = BA() <SEMIC>
+      { decls.add(new Bind(n.image,e1)); }
+     )+
+        e2 = Seq(){ t = new ASTLet(decls, e2); })
+    )
+    
+   { return t; }
+}
+
+ASTNode Block() :
+{ ASTNode t1, t2; }
+{
+    t1 = SeqExp() ( <SEMIC> t2 = Block() { t1 = new ASTSeq(t1, t2); } )?
+    { return t1; }
+}
+
+ASTNode Seq() :
+{Token op;
+  ASTNode t1, t2;}
+{
+     t1 = SeqExp() ( ( op=<SEMIC> ) t2 = SeqExp()
+    {
+        t1 = new ASTSeq(t1, t2);
+    }
+    )*
+    { return t1; }  
+}
+
+
+
+ASTNode SeqExp() :
+{Token op;
+  ASTNode t1, t2;}
+{
+     t1 = BA() ( ( op=<ASSIGN> ) t2 = BA() 
+ 		 {
+      t1 = new ASTAssign(((ASTId)t1).id, t2);
+     } 
+		)*
+     { return t1; }  
+}
+
+ASTNode BA() :
+{Token op;
+  ASTNode t1, t2;}
+{
+     t1 = BM() ( ( op=<OR> ) t2 = BM() 
+ 		 {
+     t1 = new ASTOr(t1, t2);
+     } 
+		)*
+     { return t1; } 
+}
+
+ASTNode BM() :
+{Token op;
+  ASTNode t1, t2;}
+{
+     t1 = Rel() ( ( op=<AND> ) t2 = Rel() 
+ 		 {
+     t1 = new ASTAnd(t1, t2);
+ 		 } 
+		)*
+     { return t1; } 
+}
+
+
+ASTNode Rel() :
+{Token op;
+  ASTNode t1, t2;}
+{
+     t1 = Exp() ( ( op=<EQ> | op=<GT> | op=<LT> | op=<GTEQ> | op=<LTEQ> | op=<NEQ>) t2 = Exp() 
+   {
+   if (op.kind == EQ) t1 = new ASTEq(t1, t2);
+   else if (op.kind == NEQ) t1 = new ASTNot(new ASTEq(t1, t2));
+   else if (op.kind == GT) t1 = new ASTGreater(t1, t2);
+   else if (op.kind == LT) t1 = new ASTLess(t1, t2);
+   else if (op.kind == GTEQ) t1 = new ASTGreaterEq(t1, t2);
+   else if (op.kind == LTEQ) t1 = new ASTLessEq(t1, t2);
+   } 
+)?
+     { return t1; } 
+}
+
+
+ASTNode Exp() :
+{ Token op;
+  ASTNode t1, t2; }
+{
+     t1=Term() ( ( op=<PLUS> | op=<MINUS> ) t2=Term() 
+                 { if (op.kind == PLUS) 
+                         t1 = new ASTPlus(t1,t2);
+                   else  t1 = new ASTSub(t1,t2);
+                 } 
+               ) *
+     { return t1; } 
+}
+
+ASTNode Term() :
+{Token op;
+  ASTNode t1, t2;}
+{
+     t1 = Fact() (
+     	  	 op=<STAR> t2 = Fact()   { t1 = new ASTMult(t1,t2); }
+		 |
+		 op=<DIV> t2 = Fact()  { t1 = new ASTDiv(t1,t2); }
+		 |
+		 <LPAR> { List<ASTNode> args = new ArrayList<>(); }
+		 (t2 = Exp() { args.add(t2); } 
+		  (<COMMA> t2 = Exp() { args.add(t2); })*
+		 )? 
+		 <RPAR> { t1 = new ASTApp(t1, args); }
+		)*
+     { return t1; } 
+}
+
+
+ASTNode Fact() :
+{ Token n; 
+  ASTNode t, e1, e2, t2;
+  List<Bind> decls;
+  ASTNode  body, alt;
+  ASTMatchClause clause;
+}
+{
+   (
+      n=<Num> { t = new ASTInt(Integer.parseInt(n.image)); } 
+    | n=<TRUE> { t = new ASTBool(true);  }
+    | n=<FALSE> { t = new ASTBool(false); }
+    | n=<Id> { t = new ASTId(n.image); } 
+    | <BOX> t=Fact() { t = new ASTBox(t); }
+    | <BANG> t=Fact() { t = new ASTDeref(t); }
+    | <MINUS> t=Fact() { t = new ASTNeg(t); }
+    | <NOT> t=Fact() { t = new ASTNot(t); }
+    | <IF> t=BA() <LBRA> e1=Let() <RBRA> <ELSE> <LBRA> e2=Let() <RBRA> { t = new ASTIf(t, e1, e2); }
+    | <WHILE> t=BA() <LBRA> body=Block() <RBRA> { t = new ASTWhile(t, body); }
+    | <FN> { List<String> params = new ArrayList<>(); }
+    n=<Id> { params.add(n.image); }
+    (<COMMA> n = <Id> { params.add(n.image); })*
+    <ARROW> <LBRA> e2 = Let() <RBRA> { t = new ASTFun(params, e2); }
+    | <PRINT> t=Fact() { t = new ASTPrint(t); }
+    | <PRINTLN> t=Fact() { t = new ASTPrintln(t); }
+    | <LPAR> t=Let() <RPAR>
+    | <NIL> { t = new ASTNil(); }
+    | <MATCH> t=Let() <LBRA> 
+      { List<ASTMatchClause> clauses = new ArrayList<>(); }
+      (clause = MatchClause() { clauses.add(clause); })*
+      <RBRA> 
+      { t = new ASTMatch(t, clauses); }
+    )
+    (
+      LOOKAHEAD(2) <CONS> t2=Fact() { t = new ASTCons(t, t2); }
+    )*
+    (
+      LOOKAHEAD(2) <LAZYCONS> t2=Fact() { t = new ASTLCons(t, t2); }
+    )*
+   { return t; }
+}
+
+ASTMatchClause MatchClause():
+{ ASTPattern pattern; ASTNode body; }
+{
+    [<BAR>] pattern=Pattern() <P_ARROW> body=Let()
+    { return new ASTMatchClause(pattern, body); }
+}
+
+ASTPattern Pattern():
+{ Token id; Token id2 = null; Token consType = null; }
+{
+    <NIL> { return new ASTNilPattern(); }
+  | id=<Id>
+    [
+      consType = <CONS> id2 = <Id>
+    | consType = <LAZYCONS> id2 = <Id>
+    ]
+    {
+      if (id2 != null && consType != null) {
+        if (consType.kind == CONS) {
+          return new ASTConsPattern(id.image, id2.image);
+        } else {
+          return new ASTLazyConsPattern(id.image, id2.image);
+        }
+      } else {
+        return new ASTVarPattern(id.image);
+      }
+    }
+}
