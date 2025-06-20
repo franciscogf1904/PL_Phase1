@@ -1,7 +1,9 @@
 public class ASTIf implements ASTNode {
-    private ASTNode cond, thenBranch, elseBranch;
+    public ASTNode cond, thenBranch, elseBranch;
     public ASTIf(ASTNode cond, ASTNode thenBranch, ASTNode elseBranch) {
-        this.cond = cond; this.thenBranch = thenBranch; this.elseBranch = elseBranch;
+        this.cond = cond;
+        this.thenBranch = thenBranch;
+        this.elseBranch = elseBranch;
     }
     public IValue eval(Environment<IValue> e) throws InterpreterError {
         IValue v = cond.eval(e);

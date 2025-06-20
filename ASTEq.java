@@ -7,6 +7,14 @@ public class ASTEq implements ASTNode {
         this.rhs = rhs;
     }
     
+    public ASTNode getLhs() {
+        return lhs;
+    }
+
+    public ASTNode getRhs() {
+        return rhs;
+    }
+    
     @Override
     public IValue eval(Environment<IValue> e) throws InterpreterError {
         IValue v1 = lhs.eval(e);

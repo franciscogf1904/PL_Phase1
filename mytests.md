@@ -67,14 +67,13 @@ let mkll = fn n =>
     if (n==0) {
         nil
     } else {
-        n::( mkll(n-1))
+        n:?( mkll(n-1))
     }
 };
 let ll10 = mkll (10);
 square ( ll10 ) ;;
 
 
- 
 
 
 

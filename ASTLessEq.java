@@ -6,6 +6,15 @@ public class ASTLessEq implements ASTNode {
         this.lhs = lhs;
         this.rhs = rhs;
     }
+
+    public ASTNode getLhs() {
+        return lhs;
+    
+    }
+
+    public ASTNode getRhs() {
+        return rhs;
+    }
     
     @Override
     public IValue eval(Environment<IValue> e) throws InterpreterError {

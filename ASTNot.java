@@ -4,6 +4,10 @@ public class ASTNot implements ASTNode {
     public ASTNot(ASTNode operand) {
         this.operand = operand;
     }
+
+    public ASTNode getOperand() {
+        return operand;
+    }
     
     @Override
     public IValue eval(Environment<IValue> e) throws InterpreterError {

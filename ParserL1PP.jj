@@ -20,6 +20,8 @@ TOKEN :
 
   < LET : "let" >
   |
+  < TYPE : "type" >
+  |
   < TRUE: "true" >
   |
   < FALSE: "false" >
@@ -99,6 +101,24 @@ TOKEN :
   < BAR: "|" > 
   |
   < P_ARROW: "->" >
+  |
+  <INT  : "int">
+  |
+  <UNIT  : "()">
+  |
+  <BOOL  : "bool">
+  |
+  <STRING  : "string">  
+  |
+  <LIST  : "list">  
+  |
+  <REF  : "ref">  
+  |
+  <UNION  : "union">  
+  |
+  <STRUCT  : "struct">
+  |
+  <DOT : ".">
   |
   < String: "\"" (~["\"","\\"]) | ("\\" ( ["n","t","b","r","f","\\","\""] ) )* "\"" >
   |
@@ -222,13 +242,21 @@ ASTNode Exp() :
 }
 
 ASTNode Term() :
-{Token op;
+{Token op, fieldTok;
   ASTNode t1, t2;}
 {
      t1 = Fact() (
-     	  	 op=<STAR> t2 = Fact()   { t1 = new ASTMult(t1,t2); }
+     (op=<CONS> | op=<LAZYCONS>) t2 = Term() 
+     { if (op.kind==CONS)
+      {t1 = new ASTCons(t1,t2);}
+      else {t1 = new ASTLCons(t1,t2);}}
+		 |
+     (
+     op=<STAR> t2 = Fact()   { t1 = new ASTMult(t1,t2); }
 		 |
 		 op=<DIV> t2 = Fact()  { t1 = new ASTDiv(t1,t2); }
+     |
+		 op = <DOT> fieldTok = <Id> { t1 = new ASTFieldAccess(t1, fieldTok.image); }
 		 |
 		 <LPAR> { List<ASTNode> args = new ArrayList<>(); }
 		 (t2 = Exp() { args.add(t2); } 
@@ -236,9 +264,69 @@ ASTNode Term() :
 		 )? 
 		 <RPAR> { t1 = new ASTApp(t1, args); }
 		)*
+    )
      { return t1; } 
 }
 
+ASTNode FunB(String sid) : 
+{
+  Token n; 
+  ASTNode t, e1;
+  ASTType at;
+}
+{ 
+  (
+    <COMMA> n = <Id> <COLON> at = Type() { 
+      List<String> params = new ArrayList<>();
+      params.add(sid);
+      params.add(n.image);
+      e1 = FunB(n.image); 
+      t = new ASTFun(params, null, e1); 
+    }
+    |
+    <ARROW> <LBRA> e1 = Let() <RBRA> { 
+      List<String> params = new ArrayList<>();
+      params.add(sid);
+      t = new ASTFun(params, null, e1);
+    }
+  )
+  { return t; } 
+}
+
+ASTNode Fun() : 
+{
+  Token n;
+  ASTNode t, e1=null, e2;
+  ASTType at;
+  List<String> params = new ArrayList<>();
+  List<ASTType> paramTypes = new ArrayList<>();
+}
+{
+  <FN> 
+  (
+    n=<Id> <COLON> at=Type() 
+    { 
+      params.add(n.image);
+      paramTypes.add(at);
+      t = new ASTFun(params, paramTypes, null);
+      e1 = t;
+    }
+    (<COMMA> n=<Id> <COLON> at=Type() 
+      { 
+        params.add(n.image);
+        paramTypes.add(at);
+        e2 = new ASTFun(params, paramTypes, null);
+        ((ASTFun)e1).setBody(e2);
+        e1 = e2;
+      }
+    )*
+  )
+  <ARROW> <LBRA> e2=Let() <RBRA> 
+  { 
+    ((ASTFun)e1).setBody(e2);
+  }
+  { return t; }
+}
 
 ASTNode Fact() :
 { Token n; 
@@ -262,7 +350,7 @@ ASTNode Fact() :
     | <FN> { List<String> params = new ArrayList<>(); }
     n=<Id> { params.add(n.image); }
     (<COMMA> n = <Id> { params.add(n.image); })*
-    <ARROW> <LBRA> e2 = Let() <RBRA> { t = new ASTFun(params, e2); }
+    <ARROW> <LBRA> e2 = Let() <RBRA> { t = new ASTFun(params, null, e2); }
     | <PRINT> t=Fact() { t = new ASTPrint(t); }
     | <PRINTLN> t=Fact() { t = new ASTPrintln(t); }
     | <LPAR> t=Let() <RPAR>
@@ -281,6 +369,8 @@ ASTNode Fact() :
     )*
    { return t; }
 }
+
+
 
 ASTMatchClause MatchClause():
 { ASTPattern pattern; ASTNode body; }
@@ -309,4 +399,56 @@ ASTPattern Pattern():
         return new ASTVarPattern(id.image);
       }
     }
+}
+
+ASTType Type() : 
+{
+  ASTType t1, t2;
+}
+{        
+    t1 = TypeF() (<P_ARROW> t2 = Type() { t1 = new ASTTArrow(t1,t2);} )?
+    { return t1; }
+}
+
+TypeBindList LabelList() :
+{
+  ASTType t;
+  TypeBindList tbl = new TypeBindList();
+  Token n;
+  TypeBind tb;  // Add this declaration
+}
+{   
+    ( n=<Id> <COLON> t = Type() 
+      { 
+        tb = new TypeBind(n.image, t);
+        tbl.addBinding(tb);
+      }
+      (<COMMA> n=<Id> <COLON> t = Type() 
+        { 
+          tb = new TypeBind(n.image, t);
+          tbl.addBinding(tb);
+        }
+      )*
+    )?
+    { return tbl; }
+}
+
+ASTType TypeF() : 
+{
+  ASTType t;
+  TypeBindList ll;
+  Token n;
+}
+{        
+    ( 
+          <INT> { t = new ASTTInt(); } 
+        | n=<Id> { t = new ASTTId(n.image); } 
+        | <BOOL> { t = new ASTTBool(); } 
+        | <UNIT> { t = new ASTTUnit(); } 
+        | <STRING> { t = new ASTTString(); } 
+        | <REF> <LT> t=Type() <GT> { t = new ASTTRef(t); }
+        | <LIST> <LT> t=Type() <GT> { t = new ASTTList(t); }
+        | <STRUCT> <LBRA> ll = LabelList() <RBRA> { t = new ASTTStruct(ll); return t; }
+    )
+    { return t; }
 }

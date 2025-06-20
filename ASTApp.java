@@ -9,6 +9,14 @@ public class ASTApp implements ASTNode {
         this.fun = fun;
         this.args = args;
     }
+
+    public ASTNode getFun() {
+        return fun;
+    }
+
+    public List<ASTNode> getArgs() {
+        return args;
+    }
     
     @Override
     public IValue eval(Environment<IValue> e) throws InterpreterError {
